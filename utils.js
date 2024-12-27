@@ -1,8 +1,10 @@
+import { stationInfo } from "./dataLoader.js";
+
 export const units = {
     "ta_2m": "°C", 
     "ws_avg": "m/s", 
     "pr_1h": "mm/hod",
-    "pa": "Pa", 
+    "pa": "hPa", 
     "rh": "%", 
     "wd_avg": "°"
 };
@@ -12,7 +14,7 @@ export const variableToFullName = {
     "ws_avg": "Wind Speed",
     "pr_1h": "Precipitation",
     "pa": "Pressure",
-    "rh": "Humidity",
+    "rh": "Relative Humidity",
     "wd_avg": "Wind Direction"
 };
 
@@ -20,8 +22,8 @@ export const fullNameToVariable = {
     "Temperature (°C)": "ta_2m",
     "Wind Speed (m/s)": "ws_avg",
     "Precipitation (mm/hod)": "pr_1h",
-    "Pressure (Pa)": "pa",
-    "Humidity (%)": "rh",
+    "Pressure (hPa)": "pa",
+    "Relative Humidity (%)": "rh",
     "Wind Direction (°)": "wd_avg"
 };
 
@@ -78,4 +80,22 @@ export function findMax(data){
 
 export function findMin(data){
     return findExtreme(data, Math.min);
+}
+
+
+const stationArray = [];
+for (const [code, info] of Object.entries(stationInfo)){
+    stationArray.push(info.name + " (" + code +  ")");
+}
+
+export function searchStation(query){
+    var matchedKeys = [];
+    query = query.trim();
+    if (query === "")
+        return matchedKeys;
+    for (let station of stationArray){
+        if (station.toUpperCase().indexOf(query.toUpperCase()) > -1)
+            matchedKeys.push(station);
+    }
+    return matchedKeys;
 }

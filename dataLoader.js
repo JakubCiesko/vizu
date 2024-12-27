@@ -1,4 +1,4 @@
-const stationInfo = {
+export const stationInfo = {
     'ASBA': {'lat': 48.167778, 'lon': 17.105833, 'name': 'Bratislava - Koliba'},
     'ASIB': {'lat': 48.170278, 'lon': 17.2075, 'name': 'Bratislava - Letisko'},
     'ASJB': {'lat': 48.486111, 'lon': 17.663889, 'name': 'Jaslovské Bohunice'},

@@ -13,7 +13,6 @@ const csvUrls = [
 var data; 
 var stationInfo;
 
-
 async function init(){
     const result = await loadData(csvUrls);
     data = result.data;

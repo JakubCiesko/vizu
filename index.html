@@ -18,8 +18,8 @@
                 <div class="variable-selector" id="ta_2m"><h4>Temperature (°C)</h4></div>
                 <div class="variable-selector" id="ws_avg"><h4>Wind Speed (m/s)</h4></div>
                 <div class="variable-selector" id="pr_1h"><h4>Precipitation (mm/hod)</h4></div>
-                <div class="variable-selector" id="pa"><h4>Pressure (Pa)</h4></div>
-                <div class="variable-selector" id="rh"><h4>Humidity (%)</h4></div>
+                <div class="variable-selector" id="pa"><h4>Pressure (hPa)</h4></div>
+                <div class="variable-selector" id="rh"><h4>Relative Humidity (%)</h4></div>
                 <div class="variable-selector" id="wd_avg"><h4>Wind Direction (°)</h4></div>
             </div>
         </div>        
@@ -64,6 +64,9 @@
                             <label for="station-search">Search station:</label>
                             <input type="search" id="station-search" name="station-search" />
                             <button class="btn btn-primary w-100" id="find-station">Find</button>
+                            <ul class="list-group" id="searchResults">
+                                
+                            </ul>
                         </div>
                     </div>
                 <!--</div>-->
@@ -73,13 +76,21 @@
         </div>
 
         <div class="row mt-4">
-            <div class="col-md-6">
-                <h5>Plots</h5>
+            <div class="col-md-10">
+                <h5>Evolution of VAR</h5>
                 <div id="graph">
 
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-2">
+                <div id="graphDescription">
+                    <h5>Plot Descriptions and Filters</h5>
+                    <div><p>Pick your other variables.</p></div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
                 <h5>Comparison</h5>
             </div>
         </div>
