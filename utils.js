@@ -3,7 +3,7 @@ import { stationInfo } from "./dataLoader.js";
 export const units = {
     "ta_2m": "°C", 
     "ws_avg": "m/s", 
-    "pr_1h": "mm/hod",
+    "pr_1h": "mm/hour",
     "pa": "hPa", 
     "rh": "%", 
     "wd_avg": "°"
@@ -21,11 +21,21 @@ export const variableToFullName = {
 export const fullNameToVariable = {
     "Temperature (°C)": "ta_2m",
     "Wind Speed (m/s)": "ws_avg",
-    "Precipitation (mm/hod)": "pr_1h",
+    "Precipitation (mm/hour)": "pr_1h",
     "Pressure (hPa)": "pa",
     "Relative Humidity (%)": "rh",
     "Wind Direction (°)": "wd_avg"
 };
+
+export const variableDescriptions = {
+    ta_2m: "Air temperature in 2m height in °C, a key measure of atmospheric conditions.",
+    ws_avg: "Wind speed [m/s], representing the average wind flow over a period.",
+    pr_1h: "1-hour precipitation for the time of measurement [mm], indicating rainfall intensity.",
+    pa: "Station pressure [hPa], essential for understanding atmospheric pressure levels.",
+    rh: "Relative humidity [%], showing the amount of moisture in the air relative to its capacity.",
+    wd_avg: "Wind direction [°], specifying the average direction from which the wind is blowing."
+};
+
 
 export function getValueByDate(data, date) {
     const entry = data.find(item => item.date === date);
@@ -99,3 +109,4 @@ export function searchStation(query){
     }
     return matchedKeys;
 }
+

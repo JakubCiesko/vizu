@@ -1,4 +1,6 @@
-import { getValueByDateAndStation, getValueByDate, units, variableToFullName, fullNameToVariable, findMax, findMin, searchStation} from "./utils.js";
+import { getValueByDateAndStation, getValueByDate, units, variableToFullName, fullNameToVariable, findMax, findMin, searchStation, variableDescriptions} from "./utils.js";
+import { drawChart, createLineChart, createScatterplot, createTwoLineChart } from "./charts.js";
+import { stationInfo } from "./dataLoader.js";
 
 const geoViewBox = [16.848889, 49.613333, 22.564722, 47.739167]; //[16.848889, 49.613333, 22.564722, 47.739167];
 const [minLong, maxLat, maxLong, minLat] = geoViewBox;
@@ -18,6 +20,7 @@ var globalData;
 var globalStationInfo;
 var maxVals = {};
 var minVals = {}; 
+var colorSchemes = {};
 
 
 export async function initVizualization(data, stationInfo) {
@@ -31,8 +34,9 @@ export async function initVizualization(data, stationInfo) {
     setUpVariableSelector();
     updateMeasurementDetails(data, stationInfo[selectedStation].name);
     setUpSearchBar();
-    
-    createLineChart(data[selectedVariable]);
+    createLineChart(data[selectedVariable], selectedStation, selectedVariable);
+    createChartTitleDescription();
+    setUpComparisonSettings();
 }
 
 function search(){
@@ -61,11 +65,59 @@ function setUpSearchBar(){
     d3.select("#find-station").on("click", search);
 }
 
+function getColorSchemes() {
+    for (var variable of Object.keys(variableToFullName)) {
+        const colorScale = d3.scaleLinear()
+            .domain([minVals[variable], maxVals[variable]]) 
+            .range([0, 1]); 
+
+        switch (variable) {
+            case "ta_2m":
+                colorSchemes[variable] = (value) => d3.interpolateRdYlBu(1 - colorScale(value));
+                break;
+            case "ws_avg":
+                colorSchemes[variable] = (value) => d3.interpolateYlGnBu(colorScale(value));
+                break;
+            case "pr_1h":
+                const pr1hColorScale = d3.scalePow()
+                    .exponent(0.2) 
+                    .domain([minVals[variable], maxVals[variable]])
+                    .range([0, 1]);
+                colorSchemes[variable] = (value) => d3.interpolateBlues(pr1hColorScale(value));
+                break;
+            case "pa":
+                colorSchemes[variable] = (value) => d3.interpolateCividis(colorScale(value));
+                break;
+            case "rh":
+                colorSchemes[variable] = (value) => d3.interpolateBuGn(colorScale(value));
+                break;
+            case "wd_avg":
+                colorSchemes[variable] = (value) => {
+                    if (value >= 0 && value < 45) return "#ffffcc";    // N
+                    if (value >= 45 && value < 90) return "#c7e9b4";   // NE
+                    if (value >= 90 && value < 135) return "#7fcdbb";  // E
+                    if (value >= 135 && value < 180) return "#41b6c4"; // SE
+                    if (value >= 180 && value < 225) return "#2c7fb8"; // S
+                    if (value >= 225 && value < 270) return "#253494"; // SW
+                    if (value >= 270 && value < 315) return "#081d58"; // W
+                    if (value >= 315 && value <= 360) return "#001f3f"; // NW
+                    return "#17a2b8"; // Fallback color
+                };
+                break;
+            default:
+                colorSchemes[variable] = (value) => "#17a2b8";
+                break;
+        }
+    }
+}
+
+
 function getExtremeValues(data){
     for (const [variable, measurements] of Object.entries(data)){
         maxVals[variable] = findMax(measurements);
         minVals[variable] = findMin(measurements);
     }
+    getColorSchemes();
 }
 
 function destroyExistingSlider(){
@@ -99,10 +151,6 @@ function setUpRangeSlider(){
         }
     });
     slider.noUiSlider.on("change", () => {updateVisualization(true)});
-    /*const valRange = d3.select("#valRange").node(); 
-    console.log(minVals, maxVals, selectedVariable); //WEIRD VALUES!!!
-    valRange.min = minVals[selectedVariable];
-    valRange.max = maxVals[selectedVariable];*/
 }
 
 function setUpExcludeCheckbox(){
@@ -110,7 +158,7 @@ function setUpExcludeCheckbox(){
         .on("change", () => {
             excludeStations = !excludeStations;
             updateVisualization(true);
-        });
+    });
 }
 
 function setUpDatePicker(){
@@ -154,14 +202,67 @@ function drawMap(data, stationInfo){
                 .attr("height", "100%");
             map = d3.select("#map");
             map.selectAll("path")
-                .style("fill", "lightgray")
+                .style("fill", "#d1dbe4")
                 .style("stroke", "gray")
-                .style("stroke-width", 3)
-                drawStations(data, stationInfo, excludeStations);
+                .style("stroke-width", 3);
+            drawStations(data, stationInfo, excludeStations);
+            drawLegend(map.node().width.baseVal.value / 3);
         })      
         .catch((error) => {
             console.error("Error loading the SVG:", error);
         });
+}
+
+function drawLegend(width){
+    const legendWidth = width;
+    const legendHeight = 20;
+    const numStops = 10;
+    const selectedColorScheme = colorSchemes[selectedVariable];
+    d3.selectAll("#map-legend").remove();
+    const legendContainer = d3.select("#map-container")
+        .append("div")
+        .attr("id", "map-legend")
+        .style("text-align", "right")
+        .style("margin-top", "-10px");
+    const legendSvg = legendContainer.append("svg")
+        .attr("width", legendWidth)
+        .attr("height", 50);
+
+    const gradientId = "legendGradient";
+    const defs = legendSvg.append("defs");
+    const linearGradient = defs.append("linearGradient")
+        .attr("id", gradientId)
+        .attr("x1", "0%")
+        .attr("x2", "100%")
+        .attr("y1", "0%")
+        .attr("y2", "0%");
+
+    const stops = d3.range(numStops + 1).map(i => i / numStops);
+    stops.forEach((stop, i) => {
+        linearGradient.append("stop")
+            .attr("offset", stop * 100 + "%")
+            .attr("stop-color", selectedColorScheme(minVals[selectedVariable] + stop * (maxVals[selectedVariable] - minVals[selectedVariable])));
+    });
+    legendSvg.append("rect")
+        .attr("x", 0)
+        .attr("y", 10)
+        .attr("width", legendWidth)
+        .attr("height", legendHeight)
+        .style("fill", `url(#${gradientId})`);
+    legendSvg.append("text")
+        .attr("x", 0)
+        .attr("y", 45)
+        .attr("fill", "black")
+        .attr("font-size", "14px")
+        .attr("text-anchor", "start")
+        .text(minVals[selectedVariable] + " " + units[selectedVariable]);
+    legendSvg.append("text")
+        .attr("x", legendWidth)
+        .attr("y", 45)
+        .attr("fill", "black")
+        .attr("font-size", "14px")
+        .attr("text-anchor", "end")
+        .text(maxVals[selectedVariable] + " " + units[selectedVariable]);
 }
 
 function drawStations(data, stationInfo, excludeStations){
@@ -190,12 +291,12 @@ function drawStations(data, stationInfo, excludeStations){
     const thatDayValues = getValueByDate(data[selectedVariable], selectedDate);
     const range = slider.noUiSlider.get();
     range[0] = Number(range[0]);
-    range[1] = Number(range[1]);
+    range[1] = Number(range[1]); 
     for (const [stationCode, stationData] of Object.entries(stationInfo)) {
         if (isNaN(thatDayValues[stationCode]) && excludeStations)
             continue;
         if (!((!excludeStations && isNaN(thatDayValues[stationCode])) || (thatDayValues[stationCode] >= range[0] && thatDayValues[stationCode] <= range[1])))
-            continue;
+            continue;  
         let projectedCoords = projection([stationData.lon, stationData.lat]);    
         const circle = map.append("circle")
             .attr("cx", projectedCoords[0])
@@ -214,9 +315,11 @@ function drawStations(data, stationInfo, excludeStations){
                     .classed("station-circle-selected", false);
                 updateMeasurementDetails(globalData, globalStationInfo[selectedStation].name); 
                 updateVisualization();
-            });
+            })
+            .style("fill", colorSchemes[selectedVariable](thatDayValues[stationCode]));
+            
+        d3.selectAll("#" + selectedStation).classed("station-circle-selected", true).classed("station-circle", false); //color 
         
-        d3.selectAll("#" + selectedStation).classed("station-circle-selected", true).classed("station-circle", false);
 
         const tooltip = d3.select("body").append("div")
             .style("position", "absolute")
@@ -258,7 +361,8 @@ function setUpVariableSelector(){
                 d3.selectAll("#rangeVariableSpan").text(variableToFullName[selectedVariable]);
             updateMeasurementDetails(globalData, globalStationInfo[selectedStation].name);
             setUpRangeSlider();  
-            updateVisualization(true); 
+            updateVisualization(true);
+            drawLegend(d3.select("#map").node().width.baseVal.value / 3);
         }
         
     });
@@ -270,309 +374,125 @@ function clearMap(){
     d3.selectAll("circle").remove();
 }
 
+function createChartTitleDescription(){
+    const graphTitleVarSpan = d3.select("#graphTitleVar");
+    const graphTitleStationSpan = d3.select("#graphTitleStationName");
+    const graphDescription = d3.select("#plotDescription");
+    graphTitleVarSpan.text(variableToFullName[selectedVariable]);
+    graphTitleStationSpan.text(globalStationInfo[selectedStation].name);
+    
+    const stationPosition = stationInfo[selectedStation];
+    const elevation = stationPosition.elev;
+    const longitude = stationPosition.lon;
+    const latitude = stationPosition.lat;
+    const descriptionHtml = `
+        <p>${variableDescriptions[selectedVariable]}</p>
+        <p><strong>Station Location:</strong></p>
+        <ul>
+            <li><strong>Latitude:</strong> ${latitude.toFixed(2)}°</li>
+            <li><strong>Longitude:</strong> ${longitude.toFixed(2)}°</li>
+            <li><strong>Elevation:</strong> ${elevation.toFixed(2)} m</li>
+        </ul>
+    `;
+    graphDescription.html(descriptionHtml);
+}
+
 function updateVisualization(clear=false){
     if (clear)
         clearMap();
     drawStations(globalData, globalStationInfo, excludeStations);
-    //updateMeasurementDetails(globalData, globalStationInfo[selectedStation].name);
-    switch (selectedVariable) {
-        case "wd_avg":
-            createRoseDiagram(globalData[selectedVariable]);
-            break;
-        case "pr_1h":
-            createBarChart(globalData[selectedVariable]);
-            break;
-        default:
-            createLineChart(globalData[selectedVariable]);
-    }
+    createChartTitleDescription();
+    drawChart(globalData, selectedStation, selectedVariable);
 }
 
-function createLineChart(data) {
-    const plottingData = data
-        .filter(d => !isNaN(d[selectedStation]))
-        .map(d => ({
-            x: new Date(d.date),
-            y: d[selectedStation]
-        }));
-
-    const graphContainer = document.getElementById('graph');
-    const containerWidth = graphContainer.offsetWidth;
-
-    const defaultOptions = {
-        width: containerWidth,
-        height: 800,
-        margin: { top: 50, right: 50, bottom: 50, left: 50 },
-        xLabel: "Date",
-        yLabel: variableToFullName[selectedVariable] + " [" + units[selectedVariable] + "]",
-        lineColor: "#17a2b8",
-        pointRadius: 30,
-    };
-
-    const config = { ...defaultOptions };
-    const { width, height, margin, xLabel, yLabel, lineColor, pointRadius } = config;
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
-
-    d3.select("#graph").selectAll("*").remove();
-
-    const svg = d3
-        .select("#graph")
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
-
-    // Clipping path to prevent elements from overflowing the chart
-    svg.append("defs")
-        .append("clipPath")
-        .attr("id", "clip")
-        .append("rect")
-        .attr("width", innerWidth)
-        .attr("height", innerHeight)
-        .attr("x", 0)
-        .attr("y", 0);
-
-    const chartArea = svg
-        .append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top})`);
-
-    const xScale = d3
-        .scaleTime()
-        .domain(d3.extent(plottingData, d => d.x))
-        .range([0, innerWidth]);
-
-    const yScale = d3
-        .scaleLinear()
-        .domain([d3.min(plottingData, d => d.y), d3.max(plottingData, d => d.y)])
-        .range([innerHeight, 0]);
-
-    const xAxis = d3.axisBottom(xScale);
-    const yAxis = d3.axisLeft(yScale);
-
-    const xAxisGroup = chartArea
-        .append("g")
-        .attr("class", "x-axis")
-        .attr("transform", `translate(0, ${innerHeight})`)
-        .call(xAxis);
-
-    const yAxisGroup = chartArea
-        .append("g")
-        .attr("class", "y-axis")
-        .call(yAxis);
-
-    svg
-        .append("text")
-        .attr("text-anchor", "middle")
-        .attr("transform", `translate(${margin.left / 2}, ${margin.top + innerHeight / 2}) rotate(-90)`)
-        .text(yLabel);
-
-    svg
-        .append("text")
-        .attr("text-anchor", "middle")
-        .attr("transform", `translate(${margin.left + innerWidth / 2}, ${height - margin.bottom / 4})`)
-        .text(xLabel);
-
-    const lineGenerator = d3
-        .line()
-        .x(d => xScale(d.x))
-        .y(d => yScale(d.y));
-    
-
-    const linePath = chartArea
-        .append("path")
-        .datum(plottingData)
-        .attr("fill", "none")
-        .attr("stroke", lineColor)
-        .attr("stroke-width", 2)
-        .attr("d", lineGenerator)
-        .attr("clip-path", "url(#clip)"); // Apply clipping path
-    // add clickable points on the line so that date can be selected
-    // Zoom behavior
-    const zoom = d3.zoom()
-        .scaleExtent([1, 10]) // Zoom scale
-        .translateExtent([[0, 0], [width, height]]) // Translate bounds
-        .on("zoom", zoomed);
-
-    svg.call(zoom);
-
-    let currentTransform = null;
-
-    function zoomed({ transform }) {
-        currentTransform = transform;
-        const newXScale = transform.rescaleX(xScale);
-        const newYScale = transform.rescaleY(yScale);
-
-        xAxisGroup.call(xAxis.scale(newXScale));
-        yAxisGroup.call(yAxis.scale(newYScale));
-
-        linePath.attr("d", lineGenerator.x(d => newXScale(d.x)).y(d => newYScale(d.y)));
-    }
-
-    // Focus Cursor Implementation
-    const bisect = d3.bisector(d => d.x).left;
-
-    // Circle for focus
-    const focus = chartArea.append("g")
-        .append("circle")
-        .style("fill", "none")
-        .attr("stroke", "black")
-        .attr("r", 8.5)
-        .style("opacity", 0);
-
-    // Text for focus
-    const focusText = chartArea.append("g")
-        .append("text")
-        .style("opacity", 0)
-        .attr("text-anchor", "left")
-        .attr("alignment-baseline", "middle");
-
-    // Rectangle to capture mouse events
-    chartArea.append('rect')
-        .style("fill", "none")
-        .style("pointer-events", "all")
-        .attr("width", innerWidth)
-        .attr("height", innerHeight)
-        .on('mouseover', mouseover)
-        .on('mousemove', mousemove)
-        .on('mouseout', mouseout);
-
-    function mouseover() {
-        focus.style("opacity", 1);
-        focusText.style("opacity", 1);
-    }
-
-    function mousemove(event) {
-        if (!currentTransform) return;
-
-        const newXScale = currentTransform.rescaleX(xScale);
-        const newYScale = currentTransform.rescaleY(yScale);
-        const mouseX = d3.pointer(event)[0];
-        const x0 = newXScale.invert(mouseX); // Get the closest x value
-        const i = bisect(plottingData, x0, 1);
-        const d0 = plottingData[i - 1];
-        const d1 = plottingData[i];
-        const d = x0 - d0.x > d1.x - x0 ? d1 : d0;
-
-        focus.attr("cx", newXScale(d.x)).attr("cy", newYScale(d.y));
-        focusText
-            .html(`Date: ${d.x.toLocaleDateString()}  ${variableToFullName[selectedVariable]}: ${d.y}`)
-            .attr("x", newXScale(d.x) + 15)
-            .attr("y", newYScale(d.y));
-    }
-
-    function mouseout() {
-        focus.style("opacity", 0);
-        focusText.style("opacity", 0);
-    }
+function createDropdown(id, label, options, visibleOptions) {
+    return `
+        <div class="form-group">
+            <label for="${id}">${label}</label>
+            <select class="form-control" id="${id}">
+                ${options.map((option, i) => `<option value="${option}">${visibleOptions[i]}</option>`).join("")}
+            </select>
+        </div>
+    `;
 }
 
 
-
-
-
-function createRoseDiagram(data){
-    const bins = [
-    { direction: "N", start: 0, end: 45 },
-    { direction: "NE", start: 45, end: 90 },
-    { direction: "E", start: 90, end: 135 },
-    { direction: "SE", start: 135, end: 180 },
-    { direction: "S", start: 180, end: 225 },
-    { direction: "SW", start: 225, end: 270 },
-    { direction: "W", start: 270, end: 315 },
-    { direction: "NW", start: 315, end: 360 },
-    ];
+function setUpComparisonSettings(){
+    const visibleStations = Object.values(globalStationInfo).map(e => {return e.name;});
+    const stations = Object.keys(globalStationInfo);
+    const variables = Object.keys(variableToFullName).filter(e => e !== "wd_avg");
+    const visibleVariables = Object.entries(variableToFullName)
+        .filter(([key]) => key !== "wd_avg")
+        .map(([_, value]) => value);
     
-    const directionCounts = bins.map((bin) => {
-    return {
-        direction: bin.direction,
-        count: data.filter(d => {
-        return d[selectedStation] >= bin.start && d[selectedStation] < bin.end;
-        }).length
+    const comparisonTypeOptions = d3.select("#comparisonTypeOptions")
+        .append("div")
+        .attr("class", "form-group")
+        .html(`
+            <label>Comparison Type</label><br>
+            <input type="radio" id="compareStation" name="comparisonType" value="station" checked> Compare Stations<br>
+            <input type="radio" id="compareVariable" name="comparisonType" value="variable"> Compare Variables
+        `);
+    d3.selectAll("input[name='comparisonType']").on("change", function() {
+            const selectedType = this.value;
+            updateMenuOptions(selectedType);
+    });
+
+    function updateMenuOptions(selectedType) {
+        const menuOptions = d3.select("#menuOptions");
+        menuOptions.selectAll("*").remove(); // Clear existing options
+        if (selectedType === "station") {
+            menuOptions.html(
+                createDropdown("station1", "Station 1", stations, visibleStations) +
+                createDropdown("station2", "Station 2", stations, visibleStations) +
+                createDropdown("variable", "Variable", variables, visibleVariables)
+            );
+        } else if (selectedType === "variable") {
+            menuOptions.html(
+                createDropdown("variable1", "Variable 1", variables, visibleVariables) +
+                createDropdown("variable2", "Variable 2", variables, visibleVariables) +
+                createDropdown("stationVar", "Station", stations, visibleStations)
+            );
+        }
+    }
+    updateMenuOptions("station"); 
+    
+    d3.select("#compareButton").on("click", compare);
+    createTwoLineChart(globalData, d3.select("#station1").node().value, d3.select("#station2").node().value, d3.select("#variable").node().value)
+}
+
+function compare() {
+    const selectedType = d3.select("input[name='comparisonType']:checked").node().value;
+    if (selectedType === "station") {
+        // Get selected station 1, station 2, and variable
+        const station1 = d3.select("#station1").node().value;
+        const station2 = d3.select("#station2").node().value;
+        const variable = d3.select("#variable").node().value;
+
+        // Use the selected stations and variable to generate the comparison graph
+        createTwoLineChart(globalData, station1, station2, variable);
+    } else if (selectedType === "variable") {
+        // Get selected variables and station
+        const variable1 = d3.select("#variable1").node().value;
+        const variable2 = d3.select("#variable2").node().value;
+        const station = d3.select("#stationVar").node().value;
+
+        // Use the selected variables and station to generate the comparison graph
+        createScatterplot(globalData, [variable1, variable2], station);
+    }
+}
+
+function debounce(func, timeout = 200) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => func.apply(this, args), timeout);
     };
-    });
-    bins.forEach(bin => {
-        const matchingCount = directionCounts.find(d => d.direction === bin.direction);
-        bin.count = matchingCount ? matchingCount.count : 0;
-    });
-    
-    const width = 0.80*window.innerWidth;
-    const height = 800;
-    const innerRadius = 50;
-    const outerRadius = Math.min(width, height) / 2 - 10;
-    const angleOffset = -5; 
+}
 
-    d3.select("#graph").selectAll("*").remove();
+const debouncedResize = debounce(() => {
+    updateVisualization(true); // Redraw only after resizing is complete
+    compare();
+}, 300);
 
-    const svg = d3
-        .select("#graph")
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .attr("viewBox", [0, 0, width, height])
-        .attr("font-family", "sans-serif");
-  
-    const g = svg.append("g")
-        .attr("transform", `translate(${width/2},${height/2})`);
-  
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(directionCounts, d => d.count)])
-        .range([innerRadius, outerRadius]);
-
-    const x = d3.scaleBand()
-        .domain(bins.map(d => d.direction))
-        .range([0, 2 * Math.PI])
-        .padding(0.05);
-
-    g.append("g").attr("class", "axes")
-        .selectAll(".axis")
-        .data(bins)
-        .join("g")
-        .attr("class", "axis")
-        .attr("transform", (d, i) => `rotate(${(x(d.direction) + x.bandwidth() / 2) * 180 / Math.PI - 90})`)
-        .append("line")
-            .attr("x1", innerRadius)
-            .attr("x2", outerRadius)
-            .attr("stroke", "gray")
-            .attr("stroke-dasharray", "1,4");
-
-    var colorScale = d3.scaleOrdinal()
-    .domain(bins.map(d => d.direction)) 
-    .range(d3.schemeBlues[directionCounts.length]); 
-
-
-    g.append("g")
-        .attr("class", "rings")
-        .selectAll(".ring")
-        .data(directionCounts)
-        .join("g")
-            .attr("fill", (d, i) => colorScale(d.direction)) 
-            .selectAll("path")
-            .data((d) => [d])
-            .join("path")
-            .attr("d", d3.arc()
-                .innerRadius(0)
-                .outerRadius(d => y(d.count))
-                .startAngle(d => x(d.direction))
-                .endAngle(d => x(d.direction) + x.bandwidth())
-                .padAngle(0.01))
-            .attr("transform", `rotate(${angleOffset})`);
-
-    const label = g.append("g")
-        .attr("class", "direction-labels")
-        .selectAll("g")
-        .data(bins)
-        .join("g")
-        .attr("text-anchor", "middle")
-        .attr("transform", (d) => 
-            `rotate(${(x(d.direction) + x.bandwidth() / 2) * 180 / Math.PI - 90}) translate(${outerRadius + 20},0)`
-        );
-
-    label.append("text")
-        .attr("transform", (d) => 
-            (x(d.direction) + x.bandwidth() / 2 + Math.PI / 2) % (2 * Math.PI) < Math.PI 
-            ? "rotate(90)translate(0,6)" 
-            : "rotate(-90)translate(0,6)"
-        )
-        .text((d) => `${d.direction} (${d.count} days)`)
-        .attr("font-weight", 500)
-        .attr("font-size", 12);
-} 
+window.addEventListener('resize', debouncedResize);
