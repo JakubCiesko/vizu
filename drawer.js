@@ -440,7 +440,7 @@ function setUpComparisonSettings(){
 
     function updateMenuOptions(selectedType) {
         const menuOptions = d3.select("#menuOptions");
-        menuOptions.selectAll("*").remove(); // Clear existing options
+        menuOptions.selectAll("*").remove();
         if (selectedType === "station") {
             menuOptions.html(
                 createDropdown("station1", "Station 1", stations, visibleStations) +
@@ -456,7 +456,8 @@ function setUpComparisonSettings(){
         }
     }
     updateMenuOptions("station"); 
-    
+    document.getElementById("station2").value = "ASIB"; 
+    document.getElementById("station1").value = selectedStation;
     d3.select("#compareButton").on("click", compare);
     createTwoLineChart(globalData, d3.select("#station1").node().value, d3.select("#station2").node().value, d3.select("#variable").node().value)
 }
