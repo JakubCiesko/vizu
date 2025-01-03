@@ -35,8 +35,7 @@ Explore the project here: [Weather Visualization App](https://jakubciesko.github
 2. Start a local server using http-server:
     ```bash
     cd vizu
-   http-server```
-
+   http-server
 
 (If you don’t have http-server, install it via npm: npm install -g http-server. You can get npm at the official [Node.js website](https://nodejs.org/). Alternatively you can install http-server through Python 3.x using: python -m http.server)
 3. Open the provided localhost URL in your browser.
