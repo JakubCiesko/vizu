@@ -1,4 +1,4 @@
-import {loadData } from "./dataLoader.js";
+import { loadData } from "./dataLoader.js";
 import { initVizualization } from "./drawer.js";
 
 const csvUrls = [
@@ -19,6 +19,5 @@ async function init(){
     stationInfo = result.stationInfo;
     initVizualization(data, stationInfo);
 }
-
 
 init();

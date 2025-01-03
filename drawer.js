@@ -1,27 +1,29 @@
-import { getValueByDateAndStation, getValueByDate, units, variableToFullName, fullNameToVariable, findMax, findMin, searchStation, variableDescriptions} from "./utils.js";
+import { getValueByDateAndStation, getValueByDate, units, 
+    variableToFullName, fullNameToVariable, findMax, findMin, 
+    searchStation, variableDescriptions} from "./utils.js";
 import { drawChart, createLineChart, createScatterplot, createTwoLineChart } from "./charts.js";
 import { stationInfo } from "./dataLoader.js";
 
-const geoViewBox = [16.848889, 49.613333, 22.564722, 47.739167]; //[16.848889, 49.613333, 22.564722, 47.739167];
+const geoViewBox = [16.848889, 49.613333, 22.564722, 47.739167];
 const [minLong, maxLat, maxLong, minLat] = geoViewBox;
 
 var map;
 var slider = document.getElementById('valRangeDiv');
 
-
 var selectedVariable = "ta_2m";
 var selectedDate = "2024-12-01";
 var selectedStation = "ASBA"; 
 var excludeStations = true;
+
 var previousVariable = selectedVariable;
 var previousDate = selectedDate;
 var previousStation = selectedStation;
+
 var globalData; 
 var globalStationInfo;
 var maxVals = {};
 var minVals = {}; 
 var colorSchemes = {};
-
 
 export async function initVizualization(data, stationInfo) {
     globalData = data; 
@@ -70,7 +72,6 @@ function getColorSchemes() {
         const colorScale = d3.scaleLinear()
             .domain([minVals[variable], maxVals[variable]]) 
             .range([0, 1]); 
-
         switch (variable) {
             case "ta_2m":
                 colorSchemes[variable] = (value) => d3.interpolateRdYlBu(1 - colorScale(value));
@@ -92,7 +93,7 @@ function getColorSchemes() {
                 colorSchemes[variable] = (value) => d3.interpolateBuGn(colorScale(value));
                 break;
             case "wd_avg":
-                colorSchemes[variable] = (value) => {
+                colorSchemes[variable] = (value) => { // specific color scheme to match Rose diagram from ./charts.js
                     if (value >= 0 && value < 45) return "#ffffcc";    // N
                     if (value >= 45 && value < 90) return "#c7e9b4";   // NE
                     if (value >= 90 && value < 135) return "#7fcdbb";  // E
@@ -101,16 +102,16 @@ function getColorSchemes() {
                     if (value >= 225 && value < 270) return "#253494"; // SW
                     if (value >= 270 && value < 315) return "#081d58"; // W
                     if (value >= 315 && value <= 360) return "#001f3f"; // NW
-                    return "#17a2b8"; // Fallback color
+                    if (isNaN(value)) return "#000000"; // the stations without measurements
+                    return "#17a2b8"; 
                 };
                 break;
             default:
-                colorSchemes[variable] = (value) => "#17a2b8";
+                colorSchemes[variable] = (value) => "#17a2b8"; // generic colour
                 break;
         }
     }
 }
-
 
 function getExtremeValues(data){
     for (const [variable, measurements] of Object.entries(data)){
@@ -318,8 +319,7 @@ function drawStations(data, stationInfo, excludeStations){
             })
             .style("fill", colorSchemes[selectedVariable](thatDayValues[stationCode]));
             
-        d3.selectAll("#" + selectedStation).classed("station-circle-selected", true).classed("station-circle", false); //color 
-        
+        d3.selectAll("#" + selectedStation).classed("station-circle-selected", true).classed("station-circle", false); //color initially selected station 
 
         const tooltip = d3.select("body").append("div")
             .style("position", "absolute")
@@ -416,7 +416,6 @@ function createDropdown(id, label, options, visibleOptions) {
     `;
 }
 
-
 function setUpComparisonSettings(){
     const visibleStations = Object.values(globalStationInfo).map(e => {return e.name;});
     const stations = Object.keys(globalStationInfo);
@@ -425,7 +424,7 @@ function setUpComparisonSettings(){
         .filter(([key]) => key !== "wd_avg")
         .map(([_, value]) => value);
     
-    const comparisonTypeOptions = d3.select("#comparisonTypeOptions")
+    d3.select("#comparisonTypeOptions")
         .append("div")
         .attr("class", "form-group")
         .html(`
@@ -465,24 +464,21 @@ function setUpComparisonSettings(){
 function compare() {
     const selectedType = d3.select("input[name='comparisonType']:checked").node().value;
     if (selectedType === "station") {
-        // Get selected station 1, station 2, and variable
         const station1 = d3.select("#station1").node().value;
         const station2 = d3.select("#station2").node().value;
         const variable = d3.select("#variable").node().value;
 
-        // Use the selected stations and variable to generate the comparison graph
-        createTwoLineChart(globalData, station1, station2, variable);
+        createTwoLineChart(globalData, station1, station2, variable); //linechart if two stations compared
     } else if (selectedType === "variable") {
-        // Get selected variables and station
         const variable1 = d3.select("#variable1").node().value;
         const variable2 = d3.select("#variable2").node().value;
         const station = d3.select("#stationVar").node().value;
 
-        // Use the selected variables and station to generate the comparison graph
-        createScatterplot(globalData, [variable1, variable2], station);
+        createScatterplot(globalData, [variable1, variable2], station); //scatterplot if two variables compared
     }
 }
 
+// redrawing needed things if change of window size
 function debounce(func, timeout = 200) {
     let timer;
     return (...args) => {
@@ -492,8 +488,10 @@ function debounce(func, timeout = 200) {
 }
 
 const debouncedResize = debounce(() => {
-    updateVisualization(true); // Redraw only after resizing is complete
-    compare();
-}, 300);
+        updateVisualization(true);
+        compare();
+    }, 
+    300
+);
 
 window.addEventListener('resize', debouncedResize);

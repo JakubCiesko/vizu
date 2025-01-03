@@ -23,7 +23,6 @@
                 </p>
             </div>
         </div>
-        
         <div class="row bg-info bg-gradient text-white p-3">
             <div class="d-flex flex-wrap justify-content-evenly align-items-center w-100">
                 <div class="variable-selector col-md-2" id="ta_2m"><h4><i class="fas fa-thermometer-half"></i> Temperature (°C)</h4></div>
@@ -33,17 +32,16 @@
                 <div class="variable-selector col-md-2" id="rh"><h4><i class="fa-solid fa-hand-holding-droplet"></i> Relative Humidity (%)</h4></div>
                 <div class="variable-selector col-md-2" id="wd_avg"><h4><i class="fa-solid fa-compass"></i> Wind Direction (°)</h4></div>
             </div>
-        </div>        
-
+        </div>
         <div class="row mt-4">
             <div class="col-md-9  p-3 mb-5 bg-white rounded" id="map-col">
                 <div class="border p-3 bg-light">
-                <div id="map-container"></div>
-                <div id="station-info" class="mt-5">
-                    <h5><span id="measurement" class="highlight"></span> at <span id="station" class="highlight"></span> (<span id="date"></span>): <span id="value" class="highlight"></span></h5>
-                </div></div>
+                    <div id="map-container"></div>
+                    <div id="station-info" class="mt-5">
+                        <h5><span id="measurement" class="highlight"></span> at <span id="station" class="highlight"></span> (<span id="date"></span>): <span id="value" class="highlight"></span></h5>
+                    </div>
+                </div>
             </div>
-            
             <div class="col-md-3 p-3 mb-5 bg-white rounded" id="filter-options">
                 <div class="border p-3 bg-light">
                     <div class="card-body">
@@ -52,23 +50,16 @@
                             <label for="datePicker" class="form-label">Date:</label>
                             <input type="date" class="form-date" id="datePicker" value="2024-12-01" min="2018-01-01" max="2024-12-22">
                         </div>
-                        
                         <div id="additional-filters" class="mb-3">
-                            
                                 <input type="checkbox" class="form-checkbox" id="exclude" checked>
                                 <label class="form-check-label" for="exclude">Exclude Stations Without Measurement Data</label>
-                            
                         </div>
-                        
                         <div class="mb-3 text-center">
-                                <label class="form-range-label" for="valRangeDiv"><span id="rangeVariableSpan" class="highlight"></span> in range</label>
+                                <label class="form-range-label"><span id="rangeVariableSpan" class="highlight"></span> in range</label>
                                 
                         </div>
                         <br>
-                                <!--<input type="range" class="form-range" id="valRange">-->
-                                <div id="valRangeDiv"></div>
-                                
-                        
+                        <div id="valRangeDiv"></div>
                         <br>
                         <br>
                         <br>
@@ -76,17 +67,12 @@
                             <label for="station-search">Search station:</label>
                             <input type="search" id="station-search" name="station-search" />
                             <button class="btn btn-primary w-100" id="find-station">Find</button>
-                            <ul class="list-group" id="searchResults">
-                                
-                            </ul>
+                            <ul class="list-group" id="searchResults"></ul>
                         </div>
                     </div>
                 </div>
-                
-
             </div>
         </div>
-
         <div class="row mt-4">
             <div class="col-md-10">
                 <div id="graph" class="border p-3 bg-light"></div>
@@ -106,20 +92,15 @@
                 <div id="comparisonMenu" class="border p-3 bg-light">
                     <h5 class="mb-3">Comparison Options</h5>
                     <form id="comparisonForm">
-                        <!-- Radio buttons will be inserted by D3 -->
                         <div id="comparisonTypeOptions"></div>
-        
-                        <!-- Menu options for stations/variables will be inserted by D3 -->
-                        <div id="menuOptions"></div>
-        
+                        <div id="menuOptions"></div>        
                         <button type="button" id="compareButton" class="btn btn-primary mt-3 w-100">
                             Compare
                         </button>
                     </form>
                 </div>
             </div>
-        </div>
-        
+        </div> 
     </div>
     <script src="./dist/nouislider.min.js"></script>
 </body>
