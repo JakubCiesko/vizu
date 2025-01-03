@@ -14,3 +14,6 @@ You can get node at the official [Node.js website](https://nodejs.org/). You nee
     
 You need npm installed.
 3. Open the provided localhost URL in your browser: http://localhost:3000
+
+
+There are two branches to this project: main & node
